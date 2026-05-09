@@ -125,7 +125,7 @@ html{font-size:14px;scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--body);font-weight:300;min-height:100vh;-webkit-font-smoothing:antialiased}
 
 /* ── TOP NAV ── */
-.top-bar{background:#332E2A;border-bottom:0.5px solid rgba(255,255,255,0.07);padding:0 24px;display:flex;align-items:center;gap:0;overflow-x:auto;position:sticky;top:0;z-index:100}
+.top-bar{background:#332E2A;border-bottom:0.5px solid rgba(255,255,255,0.07);padding:0 24px;padding-top:env(safe-area-inset-top);display:flex;align-items:center;gap:0;overflow-x:auto;position:sticky;top:0;z-index:100}
 .brand{font-family:var(--head);font-size:18px;font-weight:700;color:var(--bright);letter-spacing:2px;margin-right:32px;white-space:nowrap;padding:14px 0}
 .brand span{color:#C39F75}
 .tab-btn{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:16px 16px;border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;position:relative;top:1px;font-weight:500}
@@ -160,7 +160,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-weight:
 .tg-time::after{content:'';flex:1;height:1px;background:var(--border)}
 .sup-list{display:flex;flex-direction:column;gap:6px}
 
-.sup-row{display:grid;grid-template-columns:3px 28px 1fr auto;align-items:stretch;background:#3D3832;border:none;border-radius:6px;overflow:hidden;transition:box-shadow .15s,transform .15s,opacity .2s;box-shadow:0 2px 8px rgba(0,0,0,0.4),0 1px 3px rgba(0,0,0,0.3)}
+.sup-row{display:grid;grid-template-columns:3px 28px minmax(0,1fr) minmax(80px,140px);align-items:stretch;background:#3D3832;border:none;border-radius:6px;overflow:hidden;transition:box-shadow .15s,transform .15s,opacity .2s;box-shadow:0 2px 8px rgba(0,0,0,0.4),0 1px 3px rgba(0,0,0,0.3)}
+.sup-body{padding:10px 10px 10px 14px;min-width:0;overflow:hidden}
+.sup-name{font-size:13px;font-weight:600;color:#F2EFE9;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sup-meta{padding:10px 10px 10px 6px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:4px;min-width:0}
 .sup-row:hover{transform:translateX(2px);box-shadow:0 4px 14px rgba(0,0,0,0.5),0 2px 6px rgba(0,0,0,0.35)}
 .sup-row.taken{opacity:0.45}
 .sup-row.taken .sup-name{text-decoration:line-through;text-decoration-color:rgba(195,159,117,0.6)}
@@ -189,13 +192,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);font-weight:
 .sup-note{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
 .sup-recon{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;opacity:.7}
 
-.sup-meta{padding:10px 14px;text-align:right;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px}
-.meta-tag{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:2px}
+.meta-tag{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:2px;white-space:nowrap}
 .tag-oral{background:rgba(195,159,117,0.15);color:#C39F75}
 .tag-subq{background:rgba(244,121,32,0.15);color:#F47920}
 .tag-sublin{background:rgba(155,106,245,0.1);color:var(--purple)}
 .tag-cycle{background:rgba(232,160,45,0.1);color:var(--amber)}
-.meta-freq{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.5px}
+.meta-freq{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.5px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .gym-row{background:var(--surface2);border:none;box-shadow:0 2px 8px rgba(0,0,0,0.4),0 1px 3px rgba(0,0,0,0.3);border-radius:6px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
 .gym-label{font-family:var(--head);font-size:16px;font-weight:700;color:#C39F75;letter-spacing:2px}
@@ -1262,8 +1264,8 @@ let stack = [
   },
   {
     id:5, name:'5-Amino-1MQ', dose:'500mcg', route:'subq', time:'07:00',
-    days:['mon','tue','wed','thu','fri','sat','sun'], freqNote:'Start 50mcg → titrate to 200mcg | 8–12wk on / 4wk off',
-    vial:'5mg', recon:'1ml', conc:'5mg/ml', iu:'1 IU (start) → 4 IU (target)', note:'NNMT inhibitor',
+    days:['mon','tue','wed','thu','fri','sat','sun'], freqNote:'Daily | 8–12wk on / 4wk off',
+    vial:'5mg', recon:'1ml', conc:'5mg/ml', iu:'10 IU / 0.10ml', note:'NNMT inhibitor',
     purpose:'NNMT inhibitor that elevates intracellular NAD+ specifically in adipose tissue. Increases metabolic rate in fat cells. Synergistic with systemic NAD+ injections. Human evidence base is limited — early adopter compound.',
     category:'fat'
   },
