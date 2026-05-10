@@ -23,9 +23,8 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // Inline service worker via blob URL
         const swCode = `
-const CACHE = 'staktrak-v1';
+const CACHE = 'staktrak-v2';
 const ASSETS = [self.location.pathname];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -36,32 +35,35 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   e.respondWith(caches.match(e.request).then(cached => {
     const fresh = fetch(e.request).then(res => {
-      if (res && res.status === 200) {
-        caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-      }
+      if (res && res.status === 200) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
       return res;
     }).catch(() => cached);
     return cached || fresh;
   }));
 });
-self.addEventListener('message', e => {
-  if (e.data === 'skipWaiting') self.skipWaiting();
-});
+self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });
         `;
-        const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl, { scope: '/' })
-          .then(reg => {
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  showUpdateBanner();
-                }
+
+        // Try blob URL first (works locally), fall back gracefully on GitHub Pages
+        try {
+          const blob = new Blob([swCode], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(blob);
+          navigator.serviceWorker.register(swUrl, { scope: location.pathname.replace(/\/[^/]*$/, '/') || '/' })
+            .then(reg => {
+              reg.addEventListener('updatefound', () => {
+                const w = reg.installing;
+                w.addEventListener('statechange', () => {
+                  if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+                });
               });
+            })
+            .catch(() => {
+              // Blob URL failed (e.g. GitHub Pages) — SW offline caching not available but app still works
+              console.log('SW: blob URL not supported on this host — offline caching disabled');
             });
-          })
-          .catch(err => console.log('SW registration failed:', err));
+        } catch(e) {
+          console.log('SW registration skipped:', e.message);
+        }
       });
     }
 
@@ -1130,6 +1132,31 @@ canvas.bs-canvas{width:100%;border-radius:6px;background:var(--surface2)}
 
 <!-- EDIT PANEL -->
 <div id="panel-edit" class="panel">
+  <!-- Time suggestions datalist -->
+  <datalist id="time-suggestions">
+    <option value="Breakfast">Breakfast (07:00)</option>
+    <option value="Lunch">Lunch (12:00)</option>
+    <option value="Dinner">Dinner (18:00)</option>
+    <option value="06:00"></option>
+    <option value="07:00"></option>
+    <option value="08:00"></option>
+    <option value="09:00"></option>
+    <option value="10:00"></option>
+    <option value="11:00"></option>
+    <option value="12:00"></option>
+    <option value="13:00"></option>
+    <option value="14:00"></option>
+    <option value="15:00"></option>
+    <option value="16:00"></option>
+    <option value="17:00"></option>
+    <option value="18:00"></option>
+    <option value="19:00"></option>
+    <option value="20:00"></option>
+    <option value="21:00"></option>
+    <option value="21:30"></option>
+    <option value="21:45"></option>
+    <option value="22:00"></option>
+  </datalist>
   <div class="edit-header">
     <div class="edit-title">EDIT STACK</div>
     <div style="display:flex;align-items:center;gap:16px">
@@ -1433,6 +1460,27 @@ let stack = [
   },
 ];
 
+// Map meal name labels to canonical sort time
+const MEAL_TIMES = { breakfast:'07:00', lunch:'12:00', dinner:'18:00' };
+function normaliseMealTime(val) {
+  const lower = val.trim().toLowerCase();
+  return MEAL_TIMES[lower] ? val.trim() : val.trim(); // preserve casing, just trim
+}
+// Get the sortable time for a supplement — meal labels map to their time
+function sortableTime(s) {
+  const lower = (s.time||'').toLowerCase().trim();
+  return MEAL_TIMES[lower] || s.time || '99:99';
+}
+// Display label for time group header
+function displayTime(time) {
+  const lower = (time||'').toLowerCase().trim();
+  const mapped = MEAL_TIMES[lower];
+  if (lower === 'breakfast') return { label: 'Breakfast', sort: '07:00' };
+  if (lower === 'lunch')     return { label: 'Lunch',     sort: '12:00' };
+  if (lower === 'dinner')    return { label: 'Dinner',    sort: '18:00' };
+  return { label: time, sort: time };
+}
+
 // retatrutide schedule — alternating weeks
 function isRetatrutideDay(dayIdx, weekOffset=0) {
   // week1: mon/wed/fri (0,2,4), week2: mon/wed (0,2)
@@ -1459,10 +1507,16 @@ function getSuppsForDay(dayStr) {
 function groupByTime(supps) {
   const groups = {};
   supps.forEach(s => {
-    if (!groups[s.time]) groups[s.time] = [];
-    groups[s.time].push(s);
+    const key = s.time || '99:99';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
   });
-  return Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0]));
+  // Sort by the canonical sort time — meal labels map to their time equivalent
+  return Object.entries(groups).sort((a,b) => {
+    const sa = MEAL_TIMES[a[0].toLowerCase()] || a[0];
+    const sb = MEAL_TIMES[b[0].toLowerCase()] || b[0];
+    return sa.localeCompare(sb);
+  });
 }
 
 function routeStripeClass(route) {
@@ -1566,7 +1620,9 @@ function renderDayPanel(dayStr) {
   }
 
   grouped.forEach(([time, items]) => {
-    const label = TIME_LABELS[time] || time;
+    const isMealLabel = !!MEAL_TIMES[time.toLowerCase()];
+    const sortTime = MEAL_TIMES[time.toLowerCase()] || time;
+    const label = TIME_LABELS[sortTime] || '';
     // Group checkbox state: count non-activity supplements
     const checkableItems = items.filter(s => s.id !== 1);
     const takenCount = checkableItems.filter(s => taken.includes(s.id)).length;
@@ -1577,7 +1633,9 @@ function renderDayPanel(dayStr) {
     html += `<div class="time-group">
       <div class="tg-time">
         ${checkableItems.length > 0 ? `<input type="checkbox" class="tg-check" data-day="${dayStr}" data-timegrp="${time}" ${grpChecked} ${grpDisabled} onclick="toggleTimeTaken('${dayStr}','${time}')" title="Mark all at this time">` : ''}
-        ${time} &nbsp; ${label}
+        ${isMealLabel
+          ? `<span style="color:var(--text);font-weight:500">${time}</span><span style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:8px">${sortTime}</span>`
+          : `${time}${label ? ` &nbsp; ${label}` : ''}`}
       </div>
       <div class="sup-list">`;
 
@@ -1641,7 +1699,11 @@ function renderEditTable() {
   const routeBg = {oral:'route-bg-oral',subq:'route-bg-subq',sublin:'route-bg-sublin',meal:'route-bg-meal',activity:'route-bg-activity'};
   const routeLabel = {oral:'Oral',subq:'SubQ Injection',sublin:'Sublingual',meal:'Meal / Shake',activity:'Activity'};
 
-  const editSorted = [...stack].map((s,i) => ({...s, _origIdx:i})).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  const editSorted = [...stack].map((s,i) => ({...s, _origIdx:i})).sort((a,b) => {
+    const ta = MEAL_TIMES[(a.time||'').toLowerCase()] || a.time || '';
+    const tb = MEAL_TIMES[(b.time||'').toLowerCase()] || b.time || '';
+    return ta.localeCompare(tb);
+  });
 
   // Replace table with card container
   const table = document.getElementById('editTable');
@@ -1680,7 +1742,7 @@ function renderEditTable() {
         </div>
         <div class="edit-field">
           <span class="edit-field-lbl">Time</span>
-          <input class="edit-input" style="width:100%" value="${s.time}" onchange="updateField(${i},'time',this.value)" />
+          <input class="edit-input" style="width:100%" list="time-suggestions" value="${s.time}" onchange="updateField(${i},'time',normaliseMealTime(this.value))" placeholder="e.g. 08:00 or Breakfast" />
         </div>
         <div class="edit-field">
           <span class="edit-field-lbl">Route</span>
